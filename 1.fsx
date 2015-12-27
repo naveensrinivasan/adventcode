@@ -1,5 +1,5 @@
 open System.IO
-let puzzle = File.ReadAllText( Path.Combine(__SOURCE_DIRECTORY__ , "1.1.txt"))
+let puzzle = File.ReadAllText( Path.Combine(__SOURCE_DIRECTORY__ , "1.txt"))
 let runningTotal seq' = (Seq.head seq', Seq.skip 1 seq') ||> Seq.scan (+)
 let nums= puzzle |> Seq.map(fun f -> match f.ToString() with
                                                        | "(" -> 1
