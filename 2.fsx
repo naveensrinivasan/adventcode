@@ -34,3 +34,4 @@ let ribbonsize = parse >> ribbonLength
 let totalRibbonLength =File.ReadAllLines (Path.Combine(__SOURCE_DIRECTORY__, "2.txt")) |> Seq.map(fun f-> ribbonsize f) |> Seq.reduce(+)
 
 printfn "Total Ribbon length required is %i " totalRibbonLength
+
