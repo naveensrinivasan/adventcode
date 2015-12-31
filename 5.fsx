@@ -1,5 +1,7 @@
-open System.IO
-let filereadlines f = File.ReadAllLines(f)
+#I __SOURCE_DIRECTORY__
+#load "settings.fsx"
+
+open adventcode
 
 let vowels = "aeiou".ToCharArray() |> Array.map int
 let ignorelist = [|"ab";"cd";"pq";"xy"|] |> Array.map (fun f -> int (f.ToCharArray().[0]) , int(f.ToCharArray().[1])) 
@@ -13,9 +15,10 @@ let nicestring (s:string) =
     let numberlist = s.ToCharArray() |> Array.map int 
     (atleast3vowels numberlist) && (occuredmorethanonce numberlist) && (isnotpartofigorelist numberlist)
 
-Path.Combine(__SOURCE_DIRECTORY__, "5.txt") 
-|> filereadlines 
+"5.txt"
+|> filereadlines
 |> Seq.map nicestring 
 |> Seq.filter (fun f -> f = true)
 |> Seq.length 
 |> printfn "Number of nice strings are %i " 
+ 

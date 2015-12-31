@@ -1,7 +1,6 @@
 open System.IO
 open System.Text.RegularExpressions
 
-
 (**
 
 --- Day 6: Probably a Fire Hazard ---
@@ -24,35 +23,38 @@ After following the instructions, how many lights are lit?
 
 let filereadlines f = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__, f ))
 
-type Switch = On | Off | Toggle
+type Switch = On | Off 
+
+type Action = On | Off | Toggle
 
 type Instruction = {
-  State : Switch;
+  Operation : Action ;
   StartRow  : int;
   StartCol : int;
   EndRow : int;
   EndCol : int
 }
 
-let lights =Array2D.create 1000 1000 Off
+let lights =Array2D.create 1000 1000 Switch.Off
 
 let toggle = function
-            | On -> Off
-            | Off -> On
+            | Switch.On -> Switch.Off 
+            |_  -> Switch.On 
 
 let getInstruction (line:string)= 
                   let matches = Regex.Matches(line, "[\w\d_]+")
                                         |> Seq.cast<Match>
                                         |> Seq.filter (fun f -> f.Success) |> Seq.map(fun f-> f.Value) 
 
-                  let rowstate = if matches |> Seq.nth 0 = "toggle" then Toggle
+                  let action = if matches |> Seq.nth 0 = "toggle" then Toggle
                                   elif matches |> Seq.nth 1 = "on"   then  On
                                   else Off 
                   let elementat n= int(matches |> Seq.nth n)
-                  match rowstate with
-                  |Toggle -> {State = rowstate; StartRow = elementat 1; StartCol = elementat 2; 
+
+                  match action with
+                  |Toggle -> {Operation = action; StartRow = elementat 1; StartCol = elementat 2; 
                                 EndRow = elementat 4 ; EndCol = elementat 5}
-                  |_ -> {State = rowstate; StartRow = elementat 2; StartCol = elementat 3;
+                  |_ -> {Operation = action; StartRow = elementat 2; StartCol = elementat 3;
                           EndRow = elementat 5 ; EndCol = elementat 6} 
 
 "6.txt"
@@ -61,9 +63,11 @@ let getInstruction (line:string)=
 |> Seq.iter(fun ins -> 
         for i in  ins.StartRow .. ins.EndRow do
             for j in ins.StartCol .. ins.EndCol  do
-                match ins.State with
+                match ins.Operation with
                 |Toggle ->  lights.[i, j] <- (toggle (lights.[i,j]))
-                |_ ->  lights.[i, j] <- ins.State  
+                |On ->  lights.[i, j] <- Switch.On
+                |_ -> lights.[i,j] <- Switch.Off
         ) |> ignore
 
-printfn "Lights that were turned on are %i"  (lights |> Seq.cast<Switch> |> Seq.filter(fun f -> f = On) |> Seq.length) 
+printfn "Lights that were turned on are %i"  
+    (lights |> Seq.cast<Switch> |> Seq.filter(fun f -> f = Switch.On) |> Seq.length) 
