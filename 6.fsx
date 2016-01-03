@@ -22,15 +22,14 @@ type Instruction =
       StartRow : int
       StartCol : int
       EndRow : int
-      EndCol : int
-      Language : MessageLanguage }
+      EndCol : int }
 
 let toggle = 
     function 
     | Switch.On -> Switch.Off
     | _ -> Switch.On
 
-let getInstruction (line : string) (lang : MessageLanguage) = 
+let getInstruction (line : string) = 
     let matches = 
         Regex.Matches(line, "[\w\d_]+")
         |> Seq.cast<Match>
@@ -57,15 +56,13 @@ let getInstruction (line : string) (lang : MessageLanguage) =
           StartRow = elementat 1
           StartCol = elementat 2
           EndRow = elementat 4
-          EndCol = elementat 5
-          Language = lang }
+          EndCol = elementat 5 }
     | _ -> 
         { Operation = action
           StartRow = elementat 2
           StartCol = elementat 3
           EndRow = elementat 5
-          EndCol = elementat 6
-          Language = lang }
+          EndCol = elementat 6 }
 
 let translateCode (state : Switch) (lang : MessageLanguage) (action : Action) = 
     match lang, action, state with
@@ -77,17 +74,18 @@ let translateCode (state : Switch) (lang : MessageLanguage) (action : Action) =
     | Nordic, Off, Brightness(x) -> Brightness(x - 1)
     | _, _, _ -> Switch.Off
 
+let decodeInstructions (arr : Switch [,]) (ins : Instruction) 
+    (lang : MessageLanguage) = 
+    for i in ins.StartRow..ins.EndRow do
+        for j in ins.StartCol..ins.EndCol do
+            arr.[i, j] <- translateCode arr.[i, j] lang ins.Operation
+
 let lights = Array2D.create 1000 1000 Switch.Off
 
 "6.txt"
 |> filereadlines
-|> Seq.map (fun f -> getInstruction f English)
-|> Seq.iter 
-       (fun ins -> 
-       for i in ins.StartRow..ins.EndRow do
-           for j in ins.StartCol..ins.EndCol do
-               lights.[i, j] <- translateCode lights.[i, j] ins.Language 
-                                    ins.Operation)
+|> Seq.map getInstruction
+|> Seq.iter (fun ins -> decodeInstructions lights ins English)
 lights
 |> Seq.cast<Switch>
 |> Seq.filter (fun f -> f = Switch.On)
@@ -98,13 +96,8 @@ let nordiclights = Array2D.create 1000 1000 (Brightness 0)
 
 "6.txt"
 |> filereadlines
-|> Seq.map (fun f -> getInstruction f Nordic)
-|> Seq.iter 
-       (fun ins -> 
-       for i in ins.StartRow..ins.EndRow do
-           for j in ins.StartCol..ins.EndCol do
-               nordiclights.[i, j] <- translateCode nordiclights.[i, j] 
-                                          ins.Language ins.Operation)
+|> Seq.map getInstruction
+|> Seq.iter (fun ins -> decodeInstructions nordiclights ins Nordic)
 nordiclights
 |> Seq.cast<Switch>
 |> Seq.map (fun f -> 
@@ -114,4 +107,3 @@ nordiclights
 |> Seq.sum
 |> printfn 
        "The Santa's real nordic decoded message and the total brightness is %i"
-
