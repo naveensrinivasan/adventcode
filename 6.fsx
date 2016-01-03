@@ -64,40 +64,37 @@ let getInstruction (line : string) =
           EndRow = elementat 5
           EndCol = elementat 6 }
 
-let translateCode (state : Switch) (lang : MessageLanguage) (action : Action) = 
+let translateCode (lang : MessageLanguage) (action : Action) (state : Switch) = 
     match lang, action, state with
     | English, Toggle, _ -> toggle state
     | English, On, _ -> Switch.On
     | Nordic, Toggle, Brightness(x) -> Brightness(x + 2)
     | Nordic, On, Brightness(x) -> Brightness(x + 1)
-    | Nordic, Off, Brightness(x) when x = 0 -> Brightness(0)
-    | Nordic, Off, Brightness(x) -> Brightness(x - 1)
+    | Nordic, Off, Brightness(x) -> Brightness(max (x - 1) 0)
     | _, _, _ -> Switch.Off
 
-let decodeInstructions (arr : Switch [,]) (ins : Instruction) 
-    (lang : MessageLanguage) = 
-    for i in ins.StartRow..ins.EndRow do
-        for j in ins.StartCol..ins.EndCol do
-            arr.[i, j] <- translateCode arr.[i, j] lang ins.Operation
+let followInstructions (language : MessageLanguage) (lights : Switch [,]) = 
+    let translate = translateCode language
+    "6.txt"
+    |> filereadlines
+    |> Seq.map getInstruction
+    |> Seq.iter (fun ins -> 
+           for i in ins.StartRow..ins.EndRow do
+               for j in ins.StartCol..ins.EndCol do
+                   lights.[i, j] <- translate ins.Operation lights.[i, j])
 
 let lights = Array2D.create 1000 1000 Switch.Off
+let nordiclights = Array2D.create 1000 1000 (Brightness 0)
 
-"6.txt"
-|> filereadlines
-|> Seq.map getInstruction
-|> Seq.iter (fun ins -> decodeInstructions lights ins English)
+followInstructions English lights
+followInstructions Nordic nordiclights
+
 lights
 |> Seq.cast<Switch>
 |> Seq.filter (fun f -> f = Switch.On)
 |> Seq.length
 |> printfn "The number of lights that are turned on are %i"
 
-let nordiclights = Array2D.create 1000 1000 (Brightness 0)
-
-"6.txt"
-|> filereadlines
-|> Seq.map getInstruction
-|> Seq.iter (fun ins -> decodeInstructions nordiclights ins Nordic)
 nordiclights
 |> Seq.cast<Switch>
 |> Seq.map (fun f -> 
