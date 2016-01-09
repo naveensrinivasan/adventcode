@@ -1,17 +1,23 @@
 open System
+open System.IO
 open System.Text.RegularExpressions
 
-type Exp = 
-    | ID of string * Int16
-    | NOT of string * string
-    | AND of string * string * string
-    | OR of string * string * string
-    | LSHIFT of string * int * string
-    | RSHIFT of string * int * string
+let filereadlines f = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__, f))
+type Operations = 
+    | ASSIGNVALUE 
+    | ASSIGN of string
+    | AND of string * string
+    | INTAND of uint16 * string
+    | OR of string * string
+    | INTOR of uint16 * string
+    | NOT of string
+    | LSHIFT of int * string
+    | RSHIFT of int * string
 
-let inputs = 
-    [ "123 -> x"; "456 -> y"; "x AND y -> d"; "x OR y -> e"; "x LSHIFT 2 -> f"; 
-      "y RSHIFT 2 -> g"; "NOT x -> h"; "NOT y -> i" ]
+type Instruction = 
+    { Key : string
+      Value : uint16 option
+      Operation : Operations }
 
 let parse (line : string) = 
     let words = 
@@ -21,37 +27,60 @@ let parse (line : string) =
         |> Seq.map (fun f -> f.Value)
         |> Seq.toArray
     match words with
-    | [| a; b |] -> ID(b, int16 a)
-    | [| a; b; c |] -> NOT(b, c)
-    | [| a; b; c; d |] when b = "AND" -> AND(a, c, d)
-    | [| a; b; c; d |] when b = "OR" -> OR(a, c, d)
-    | [| a; b; c; d |] when b = "LSHIFT" -> LSHIFT(a, int c, d)
-    | [| a; b; c; d |] when b = "RSHIFT" -> RSHIFT(a, int c, d)
-    | _ -> failwith "Pattern not found"
+    | [| a; b |] when Int16.TryParse a |> fst -> {Key = b; Value =uint16 a |> Some ; Operation = Operations.ASSIGNVALUE}
+    | [| a; b |]  -> {Key = b; Value = None;  Operation = Operations.ASSIGN(a)}
+    | [| a; b; c |] when a = "NOT" -> {Key = c; Value = None; Operation = Operations.NOT(b)}
+    | [| a; b; c ; d|] when b = "AND" && Int16.TryParse a |> fst -> {Key = d; Value = None; Operation = Operations.INTAND(uint16 a,c)}
+    | [| a; b; c ; d|] when b = "AND" -> {Key = d; Value = None; Operation = Operations.AND(a,c)}
+    | [| a; b; c ; d|] when b = "OR" && Int16.TryParse a |>fst  -> {Key = d; Value = None; Operation = Operations.INTOR(uint16 a,c)}
+    | [| a; b; c ; d|] when b = "OR" -> {Key = d; Value = None; Operation = Operations.OR(a,c)}
+    | [| a; b; c ; d|] when b = "LSHIFT" -> {Key = d; Value = None; Operation = Operations.LSHIFT(int c,a)}
+    | [| a; b; c ; d|] when b = "RSHIFT" -> {Key = d; Value = None; Operation = Operations.RSHIFT(int c,a)}
+    | _ ->  failwith  "Pattern not found"
 
-let identifiers (exps : seq<Exp>) = 
-    exps
-    |> Seq.map (fun f -> 
-           match f with
-           | ID(a, b) -> [ a ]
-           | NOT(a, b) -> [ a; b ]
-           | AND(a, b, c) -> [ a; b; c ]
-           | OR(a, b, c) -> [ a; b; c ]
-           | LSHIFT(a, _, b) -> [ a; b ]
-           | RSHIFT(a, _, b) -> [ a; b ])
-    |> Seq.collect (fun f -> f)
-    |> Seq.distinct
-    |> Seq.map (fun f -> (f, int16 0))
-    |> Map.ofSeq
+let rec inputsWithValues   (instructions : seq<Instruction>) = 
 
-let processExp (exp : Exp) (ids : Map<string, int16>) = 
-    match exp with
-    | ID(a, b) -> ids.Remove(a).Add(a, b)
-    | NOT(a, b) -> ids.Remove(b).Add(b, (~~~ids.[a]))
-    | AND(a, b, c) -> ids.Remove(c).Add(c, (ids.[a] &&& ids.[b]))
-    | OR(a, b, c) -> ids.Remove(c).Add(c, (ids.[a] ||| ids.[b]))
-    | LSHIFT(a, b, c) -> ids.Remove(c).Add(c, (ids.[a] <<< b))
-    | RSHIFT(a, b, c) -> ids.Remove(c).Add(c, (ids.[a] >>> b))
+    let values = instructions |> Seq.filter (fun f -> f.Value <> None)
+                              |> Seq.map (fun f -> f.Key, f.Value)
+                              |> Map.ofSeq
+    let exist k = values.ContainsKey k 
+    let bothExist k  h= exist k && exist h
+    let getvalue k f=  if exist k then f values.[k].Value |> Some else None
 
-let parsedInputs = inputs |> Seq.map (fun f -> parse f)
-let map = parsedInputs |> identifiers
+    let binaryOP a b (f : uint16 -> uint16 -> uint16) = 
+        if bothExist a b then 
+            (f values.[a].Value values.[b].Value) |> Some
+        else None
+    
+    let shiftOP a b (f : uint16 -> int -> uint16) = 
+        if exist a then f values.[a].Value b |> Some
+        else None
+    
+    let negOP a = 
+        if exist a then (~~~values.[a].Value) |> Some
+        else None
+    
+    let result = 
+        instructions
+        |> Seq.map (fun f -> 
+               match f.Operation with
+               | ASSIGNVALUE -> f
+               | ASSIGN(a) -> {f with Value = if exist a then values.[a] else None}
+               | NOT(A) -> { f with Value = negOP A }
+               | AND(A, B) -> { f with Value = binaryOP A B (&&&) }
+               | INTAND(A, B) -> { f with Value = getvalue B ((&&&) A) }
+               | INTOR(A, B) -> { f with Value = getvalue B ((|||) A)}
+               | OR(A, B) -> { f with Value = binaryOP A B (|||) }
+               | LSHIFT(A, B) -> { f with Value = shiftOP B A (<<<) }
+               | RSHIFT(A, B) -> { f with Value = shiftOP B A (>>>) })
+    
+    if result |> Seq.exists (fun f -> f.Value = None) then 
+        inputsWithValues result 
+    else result
+
+let a = "7.txt"
+            |> filereadlines
+            |> Seq.map (fun f -> parse f)
+            |> inputsWithValues
+            |> Seq.find(fun f -> f.Key = "a")
+printfn "a's value is %d"a.Value.Value
