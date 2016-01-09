@@ -78,9 +78,21 @@ let rec inputsWithValues   (instructions : seq<Instruction>) =
         inputsWithValues result 
     else result
 
-let a = "7.txt"
-            |> filereadlines
-            |> Seq.map (fun f -> parse f)
+let parsedValues ="7.txt"
+                   |> filereadlines
+                   |> Seq.map (fun f -> parse f)
+let a = parsedValues
             |> inputsWithValues
             |> Seq.find(fun f -> f.Key = "a")
 printfn "a's value is %d"a.Value.Value
+
+
+
+let secondA = parsedValues
+                |> Set.ofSeq 
+                |> Set.remove(parsedValues |> Seq.find(fun f -> f.Key = "b")) 
+                |> Set.add({b with Value = a.Value}) 
+                |> inputsWithValues
+                |> Seq.find(fun f -> f.Key = "a")
+
+printfn "Second a's value is %d" secondA.Value.Value 
